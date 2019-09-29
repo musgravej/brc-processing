@@ -6,6 +6,8 @@ import sqlite3
 class Global:
     def __init__(self):
         self.database = 'medica_brc_entry.db'
+        self.current_campaign = ''
+        self.available_campaigns = []
 
         self.file_import_header = ['source', 'source_seq', 'unique_id', 'Individual_First_Name_1', 
                                    'Individual_Middle_Name_1', 'Individual_Last_Name_1', 
@@ -30,10 +32,26 @@ class Global:
                                    'removed', 'm_id', 'std_dmamps', 'std_prison', 'std_deceas', 'desc_dob', 
                                    'desc_dod']
 
+    def set_current_campaign(self):
+        campaign_dic = dict()
+        for n, x in enumerate(g.available_campaigns, 1):
+            print("{}: {}".format(n, x))
+            campaign_dic[n] = x
+
+        ans = int(input("Set current campaign by number: "))
+        while ans not in campaign_dic.keys():
+            print("Error: Invalid entry")
+            ans = int(input("Set current campaign by number: "))
+
+        self.current_campaign = campaign_dic[ans]
+        print("Current campaign search changed to {0}\n".format(self.current_campaign.upper()))
+
+        main_menu()
+
 
 def initialize_db():
     sql1 = ("CREATE TABLE `records` ("
-            "`group` VARCHAR(25) NULL DEFAULT NULL, "
+            "`campaign` VARCHAR(25) NULL DEFAULT NULL, "
             "`source` VARCHAR(75) NULL DEFAULT NULL, "
             "`source_seq` INT(10) NULL DEFAULT NULL, "
             "`unique_id` VARCHAR(20) NULL DEFAULT NULL, "
@@ -116,11 +134,11 @@ def initialize_db():
     conn.close()
 
 
-def import_records(fle, group):
+def import_records(fle, campaign):
 
     print("importing: {0}".format(fle))
     import_header = list(g.file_import_header)
-    import_header.extend(['group'])
+    import_header.extend(['campaign'])
     import_header_sql = "`,`".join(import_header)
 
     conn = sqlite3.connect(database=g.database)
@@ -132,29 +150,68 @@ def import_records(fle, group):
         next(csvr)
         for n, line in enumerate(csvr, 1):
             rec_values = ([line[k] for k in g.file_import_header])
-            rec_values.extend([group])
+            rec_values.extend([campaign])
             rec_values_sql = ('","'.join(map(lambda x: str(x), rec_values)))
 
             sql = ('INSERT INTO `records` (`{0}`) '
                    'VALUES ("{1}");'.format(import_header_sql, rec_values_sql))
             cursor.execute(sql)
-            if n > 10: break
+            # if n > 10: break
 
     conn.commit()
     conn.close()
 
+
 def show_tables():
-    pass
+    print("Fetching loaded tables")
+    conn = sqlite3.connect(database=g.database)
+    cursor = conn.cursor()
+
+    if not g.available_campaigns:
+        sql = "SELECT * FROM records GROUP by `campaign`;"
+        cursor.execute(sql)
+
+        results = cursor.fetchall()
+        lst = list()
+
+        if len(results) != 0:
+            print("Tables loaded for campaigns:")
+            for n, result in enumerate(results):
+                r = result[0]
+                print("\t{0}".format(r))
+                lst.append(r)
+                if n == 0:
+                    g.current_campaign = r
+        else:
+            print("Error: No tables loaded")
+
+        g.available_campaigns = lst
+        print("\n**Current campaign search for: {0}**\n".format(g.current_campaign))
+
+    else:
+        for r in g.available_campaigns:
+            print("\t{0}".format(r))
+
+    conn.close()
 
 
 def choose_task():
-    pass
+    ans = input("Choose task (1: start entry, 2: export entries, 3: change campaign for entry, 0: quit): ")
+    if ans not in ['1', '2', '3', '0']:
+        print("Invalid answer")
+        main_menu()
+
+    if ans == '0':
+        exit()
+
+    return ans
 
 
 def export_results():
     """ all results for day, all unexported results for day
     """
     pass
+    main_menu()
 
 
 def unique_id_entry():
@@ -164,20 +221,55 @@ def unique_id_entry():
         display matching results
         set aside if not matching
     """
-    pass
+    conn = sqlite3.connect(database=g.database)
+    cursor = conn.cursor()
+
+    print("\nenter '0' to exit to main menu")
+    print("\nID will search in campaign, {0}".format(g.current_campaign))
+    ans = input("\nEnter unique id ({0}): ".format(g.current_campaign))
+
+    while ans != '0':
+        sql = "SELECT * FROM `records` WHERE `unique_id` = ? AND `campaign` = ?;"
+        cursor.execute(sql, (ans, g.current_campaign))
+
+        results = cursor.fetchall()
+        if len(results) == 0:
+            print("No result found")
+        if len(results) > 1:
+            print("Error: unique id returns more than one result.\n:"
+                  "See list administrator")
+
+        for result in results:
+            print("Search result:")
+            print("Unique ID: {0} MID: {1}".format(result[3], result[36]))
+            print("Name 1: {0} {1}".format(result[4], result[6]))
+            if result[7] != '':
+                print("Name 2: {0} {1}".format(result[7], result[9]))
+            print("Address: {0}".format(result[10]))
+            if result[11] != '':
+                print("         : {0}".format(result[11]))
+            print("{0}, {1} {2}".format(result[12], result[14], result[15]))
+
+        ans = input("\nEnter unique id ({0}): ".format(g.current_campaign.upper()))
+
+    conn.close()
+    main_menu()
 
 
-def start_processing(display_tables=True):
+def main_menu(display_tables=True):
     if display_tables:
         show_tables()
 
     ans = choose_task()
 
-    if ans == 1:
+    if ans == '3':
+        g.set_current_campaign()
+
+    if ans == '2':
         # export results
         export_results()
 
-    if ans == 0:
+    if ans == '1':
         # start id entry
         unique_id_entry()
 
@@ -186,8 +278,10 @@ def main():
     global g
     g = Global()
     # initialize_db()
-    # import_records('full_list_lg1.txt', 'LG1')
-    start_processing()
+    # import_records(os.path.join('records', 'full_list_lg1.txt'), 'LG1')
+    # import_records(os.path.join('records', 'full_list_lg2.txt'), 'LG2')
+    # import_records(os.path.join('records', 'full_list_preheat.txt'), 'Preheat')
+    main_menu()
 
 
 if __name__ == '__main__':
