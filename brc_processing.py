@@ -1,6 +1,7 @@
 import csv
 import os
 import sqlite3
+import datetime
 
 
 class Global:
@@ -8,8 +9,9 @@ class Global:
         self.database = 'medica_brc_entry.db'
         self.current_campaign = ''
         self.available_campaigns = []
+        self.processing_date = datetime.date.strftime(datetime.date.today(), "%Y-%m-%d")
 
-        self.file_import_header = ['source', 'source_seq', 'unique_id', 'Individual_First_Name_1', 
+        self.file_import_header = ['source', 'source_seq', 'unique_id', 'Individual_First_Name_1',
                                    'Individual_Middle_Name_1', 'Individual_Last_Name_1', 
                                    'Individual_First_Name_2', 'Individual_Middle_Name_2', 
                                    'Individual_Last_Name_2', 'Address_1', 'Address_2', 'County', 
@@ -29,8 +31,12 @@ class Global:
                                    'longitude_', 'elatitude', 'elongitude', 'dpv_', 'census_tr', 'census_bl', 
                                    'census_rs', 'dpvnotes_', 'vacant_', 'leftout_', 'ffapplied_', 'movetype_', 
                                    'movedate_', 'matchflag_', 'nxi_', 'ank_', 'address_group', 'in_service', 
-                                   'removed', 'm_id', 'std_dmamps', 'std_prison', 'std_deceas', 'desc_dob', 
+                                   'removed', 'm_id', 'std_dmamps', 'std_prison', 'std_deceas', 'desc_dob',
                                    'desc_dod']
+
+        self.file_export_header = ['','Wunderman Person ID', 'First Name', 'Last Name', 'Address_1',
+                                   'Address_2', 'City', 'State', 'Zip', 'Telephone', 'Email',
+                                   'Medica 2D BRC MID', 'Client Person Code', 'Page_IMAGES','']
 
     def set_current_campaign(self):
         campaign_dic = dict()
@@ -45,6 +51,19 @@ class Global:
 
         self.current_campaign = campaign_dic[ans]
         print("Current campaign search changed to {0}\n".format(self.current_campaign.upper()))
+
+        main_menu()
+
+    def set_processing_date(self):
+        print("\nCurrent processing date is {}".format(g.processing_date))
+        ans = input("Enter processing date as YYYY-MM-DD: ")
+
+        try:
+            new_date = datetime.datetime.strptime(ans, "%Y-%m-%d").date()
+            self.processing_date = new_date
+            print("\n** Processing date updated, processing date: {0} **\n\n".format(self.processing_date))
+        except ValueError:
+            print("\n** Invalid date format, processing date NOT updated **\n\n")
 
         main_menu()
 
@@ -116,8 +135,14 @@ def initialize_db():
 
     sql2 = ("CREATE TABLE `id_entry` ("
             "`unique_id` VARCHAR(25) NULL DEFAULT NULL,"
+            "`campaign` VARCHAR(25) NULL DEFAULT NULL,"
+            "`entered_email` VARCHAR(100) NULL DEFAULT NULL,"
+            "`entered_phone` VARCHAR(100) NULL DEFAULT NULL,"
+            "`entry_notes` VARCHAR(200) NULL DEFAULT NULL,"
             "`exported` INT(10) DEFAULT 0, "
-            "`logdate` DATETIME NULL DEFAULT NULL);")
+            "`log_date` DATE NULL DEFAULT NULL,"
+            "`entry_date` DATETIME NULL DEFAULT NULL,"
+            "PRIMARY KEY (`unique_id`, `campaign`));")
 
     conn = sqlite3.connect(database=g.database)
     cursor = conn.cursor()
@@ -196,8 +221,9 @@ def show_tables():
 
 
 def choose_task():
-    ans = input("Choose task (1: start entry, 2: export entries, 3: change campaign for entry, 0: quit): ")
-    if ans not in ['1', '2', '3', '0']:
+    ans = input("Choose task (1: start entry, 2: export entries, "
+                "3: change campaign for entry, 4: change processing date, 0: quit): ")
+    if ans not in ['1', '2', '3', '4', '0']:
         print("Invalid answer")
         main_menu()
 
@@ -210,8 +236,104 @@ def choose_task():
 def export_results():
     """ all results for day, all unexported results for day
     """
-    pass
-    main_menu()
+    conn = sqlite3.connect(database=g.database)
+    cursor = conn.cursor()
+
+    print("\nExporting results")
+    ans = input("\nChoose export type\n\t1: Export for ALL not previously exported"
+                "\n\t2: Export ALL for today\n\t3: Export ALL for date"
+                "\n\t4: Export not previously exported for date"
+                "\n\t0: exit to main menu\n: ")
+
+    while ans not in ['0', '1', '2', '3', '4']:
+        print("Invalid answer")
+        ans = input("\nChoose export type\n\t1: Export for ALL not previously exported"
+                    "\n\t2: Export ALL for unique ID entered TODAY\n\t3: Export ALL for date"
+                    "\n\t4: Export not previously exported for date"
+                    "\n\t0: exit to main menu\n: ")
+
+    if ans == '0':
+        main_menu()
+    if ans == '1':
+        cursor.execute("SELECT DATE(log_date) FROM `id_entry` group by DATE(log_date);")
+        dates = cursor.fetchall()
+
+        for d in dates:
+            sql = ("SELECT a.*, b.* FROM `records` AS a "
+                   "JOIN id_entry as b "
+                   "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
+                   "WHERE DATE(b.log_date) = ? AND b.exported = 0;")
+
+            d_parts = str.split(d[0], '-')
+            cursor.execute(sql, d)
+            results = cursor.fetchall()
+
+            save_date_string = datetime.datetime(year=int(d_parts[0]),
+                                                 month=int(d_parts[1]),
+                                                 day=int(d_parts[2]),
+                                                 hour=datetime.datetime.now().hour,
+                                                 minute=datetime.datetime.now().minute,
+                                                 second=datetime.datetime.now().second)
+            datetime_string = datetime.datetime.strftime(save_date_string, "%Y-%m-%d_%H-%M-%S")
+
+            with open(f'AbbyyACQ_{datetime_string}.csv', 'w+', newline='') as s:
+                csvw = csv.writer(s, delimiter='|')
+                csvw.writerow(g.file_export_header)
+                for r in results:
+                    csvw.writerow(['', r[3], r[4], r[6], r[10], r[11],
+                                   r[13], r[14], r[15], r[95], r[94],
+                                   r[35], '', f'brc_scans_{datetime_string}.pdf', ''])
+
+                sql = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
+                       "(`unique_id` = ? AND `campaign` = ?);")
+                print(sql, r[3], r[93])
+                cursor.execute(sql, (r[3], r[93]))
+
+            conn.commit()
+
+    if ans == '2':
+        sql = ("SELECT a.*, b.* FROM `records` AS a "
+               "JOIN id_entry as b "
+               "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
+               "WHERE DATE(b.log_date) = DATE('now', 'localtime');")
+
+    if ans == '3':
+        ans = input("Export ALL for date (YYYY-MM-DD): ")
+        sql = ("SELECT a.*, b.* FROM `records` AS a "
+               "JOIN id_entry as b "
+               "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
+               "WHERE DATE(b.log_date) = ?;")
+
+    if ans == '4':
+        ans = input("Export not previously exported for date (YYYY-MM-DD): ")
+        sql = ("SELECT a.*, b.* FROM `records` AS a "
+               "JOIN id_entry as b "
+               "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
+               "WHERE DATE(b.log_date) = ? AND b.exported = 0;")
+
+    if ans in ['2', '3', '4']:
+        cursor.execute(sql)
+        results = cursor.fetchall()
+
+        datetime_string = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d_%H-%M-%S")
+
+        with open(f'AbbyyACQ_{datetime_string}.csv', 'w+', newline='') as s:
+            csvw = csv.writer(s, delimiter='|')
+            csvw.writerow(g.file_export_header)
+            for r in results:
+                csvw.writerow(['', r[3], r[4], r[6], r[10], r[11],
+                              r[13], r[14], r[15], r[95], r[94],
+                              r[35], '', f'brc_scans_{datetime_string}.pdf', ''])
+
+                sql = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
+                       "(`unique_id` = ? AND `campaign` = ?);")
+                cursor.execute(sql, (r[3], r[93]))
+
+        conn.commit()
+
+    conn.close()
+
+    export_results()
 
 
 def unique_id_entry():
@@ -229,26 +351,66 @@ def unique_id_entry():
     ans = input("\nEnter unique id ({0}): ".format(g.current_campaign))
 
     while ans != '0':
-        sql = "SELECT * FROM `records` WHERE `unique_id` = ? AND `campaign` = ?;"
+        error = False
+        sql = ("SELECT a.*, b.* FROM `records` AS a "
+               "LEFT JOIN id_entry as b "
+               "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
+               "WHERE a.`unique_id` = ? AND a.`campaign` = ?;")
+
         cursor.execute(sql, (ans, g.current_campaign))
 
         results = cursor.fetchall()
         if len(results) == 0:
             print("No result found")
+            error = True
         if len(results) > 1:
             print("Error: unique id returns more than one result.\n:"
                   "See list administrator")
+            error = True
 
-        for result in results:
-            print("Search result:")
-            print("Unique ID: {0} MID: {1}".format(result[3], result[36]))
-            print("Name 1: {0} {1}".format(result[4], result[6]))
-            if result[7] != '':
-                print("Name 2: {0} {1}".format(result[7], result[9]))
-            print("Address: {0}".format(result[10]))
-            if result[11] != '':
-                print("         : {0}".format(result[11]))
-            print("{0}, {1} {2}".format(result[12], result[14], result[15]))
+        if not error:
+            for result in results:
+                # print(result)
+                print("Search result:")
+                print("Unique ID: {0}\nMID: {1}".format(result[3], result[36]))
+                print("Name 1: {0} {1}".format(result[4], result[6]))
+                if result[7] != '':
+                    print("Name 2: {0} {1}".format(result[7], result[9]))
+                print("Address: {0}".format(result[10]))
+                if result[11] != '':
+                    print("         : {0}".format(result[11]))
+                print("{0}, {1} {2}".format(result[12], result[14], result[15]))
+
+                if result[98] is not None:
+                    ans = input("\n** Unique ID previously "
+                                "logged on {0}, REPLACE? "
+                                "(yes: 1 / no: 0): ".format(result[98]))
+                    if ans != '1':
+                        error = True
+
+            if not error:
+                ans = input("Accept entry? (yes: 1 / no: 0)")
+                while ans not in ['1', '0']:
+                    print("Invalid response")
+                    ans = input("Accept entry? (yes: 1 / no: 0): ")
+
+                if ans == '1':
+                    email = input("provided email: ").strip()
+                    phone = input("provided phone (numbers only): ").strip()
+                    notes = input("additional notes: ").strip()
+
+                    phone = "".join(filter(lambda x: x.isdigit(), phone))
+
+                    sql = ("REPLACE INTO `id_entry` (`unique_id`, `log_date`, `entered_email`,"
+                           "`entered_phone`, `entry_notes`, `campaign`, `exported`, `entry_date`) "
+                           "VALUES (?, ?, ?, ?, ?, ?, 0, DATETIME('now', 'localtime'));")
+
+                    cursor.execute(sql, (result[3], g.processing_date, email, phone,
+                                         notes, g.current_campaign))
+                    conn.commit()
+
+                else:
+                    print("Entry not recorded")
 
         ans = input("\nEnter unique id ({0}): ".format(g.current_campaign.upper()))
 
@@ -262,15 +424,16 @@ def main_menu(display_tables=True):
 
     ans = choose_task()
 
+    if ans == '4':
+        g.set_processing_date()
+
     if ans == '3':
         g.set_current_campaign()
 
     if ans == '2':
-        # export results
         export_results()
 
     if ans == '1':
-        # start id entry
         unique_id_entry()
 
 
