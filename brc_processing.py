@@ -138,10 +138,11 @@ def import_records(fle, group):
             sql = ('INSERT INTO `records` (`{0}`) '
                    'VALUES ("{1}");'.format(import_header_sql, rec_values_sql))
             cursor.execute(sql)
-            if n > 10: break
+            # if n > 10: break
 
     conn.commit()
     conn.close()
+
 
 def show_tables():
     pass
@@ -186,7 +187,9 @@ def main():
     global g
     g = Global()
     # initialize_db()
-    # import_records('full_list_lg1.txt', 'LG1')
+    # import_records(os.path.join('records', 'full_list_lg1.txt'), 'LG1')
+    # import_records(os.path.join('records', 'full_list_lg2.txt'), 'LG2')
+    # import_records(os.path.join('records', 'full_list_preheat.txt'), 'Preheat')
     start_processing()
 
 
