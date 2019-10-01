@@ -37,9 +37,36 @@ class Global:
                                    'removed', 'm_id', 'std_dmamps', 'std_prison', 'std_deceas', 'desc_dob',
                                    'desc_dod']
 
-        self.file_export_header = ['','Wunderman Person ID', 'First Name', 'Last Name', 'Address_1',
+        self.file_export_header = ['Wunderman Person ID', 'First Name', 'Last Name', 'Address_1',
                                    'Address_2', 'City', 'State', 'Zip', 'Telephone', 'Email',
-                                   'Medica 2D BRC MID', 'Client Person Code', 'Page_IMAGES','']
+                                   'Medica 2D BRC MID', 'Client Person Code', 'Page_IMAGES']
+
+        self.merge_letter_header = ['Campaign', 'Individual_First_Name_1', 'Individual_Last_Name_1',
+                                    'Individual_First_Name_2', 'Individual_Last_Name_2', 'Address_1',
+                                    'Address_2', ]
+
+        self.version_dictionary = {'ML2|Y0088_54602_C': 'OMA', 'ML1|Y0088_54601_C': 'OMA',
+                                   'ML3|Y0088_54603_C': 'OMA', 'BRC20 ML7|n/a': 'OMA',
+                                   'BRC20 ML8|n/a': 'OMA', 'BRC20 ML9|TCGPTCM': 'TC-TCM',
+                                   'BRC20 ML9|TCGPG': 'TC-GTCM', 'BRC20 ML9|TCGPSE': 'TC-SEMN',
+                                   'BRC20 ML10|TCWBTCM': 'TC-TCM', 'BRC20 ML10|TCWBG': 'TC-GTCM',
+                                   'BRC20 ML10|TCWBSE': 'TC-SEMN', 'BRC20 ML13|OIOMO-LG2': 'OMA',
+                                   'FBC20 ML12|OIGP-LG2': 'OMA', 'BRC20 ML14|OIIFP-LG2': 'OMA',
+                                   'BRC20 ML15|TCGPTC-LG2': 'TC-TCM', 'BRC20 ML15|TCGPSE-LG2': 'TC-SEMN',
+                                   'BRC20 ML16|TCWBTC-LG2': 'TC-TCM', 'BRC20 ML11|TCOMO': 'county',
+                                   'BRC20 ML16|TCWBGTSE-LG2': 'county', 'BRC20 ML5|Y0088_54731_C': 'county',
+                                   'BRC20 ML4|Y0088_54732_C': 'county'}
+
+        self.special_counties = {'ANOKA': 'TC-TCM', 'CARVER': 'TC-TCM', 'DAKOTA': 'TC-TCM', 'HENNEPIN': 'TC-TCM',
+                                 'RAMSEY': 'TC-TCM', 'SCOTT': 'TC-TCM', 'WASHINGTON': 'TC-TCM',
+                                 'CHISAGO': 'TC-GTCM', 'ISANTI': 'TC-GTCM', 'STEARNS': 'TC-GTCM',
+                                 'KANDIYOHI': 'TC-GTCM', 'WRIGHT': 'TC-GTCM', 'SHERBURNE': 'TC-GTCM',
+                                 'BLUE EARTH': 'TC-SEMN', 'BROWN': 'TC-SEMN', 'DODGE': 'TC-SEMN',
+                                 'FARIBAULT': 'TC-SEMN', 'FILLMORE': 'TC-SEMN', 'FREEBORN': 'TC-SEMN',
+                                 'HOUSTON': 'TC-SEMN', 'MARTIN': 'TC-SEMN', 'MOWER': 'TC-SEMN',
+                                 'NICOLLET': 'TC-SEMN', 'OLMSTED': 'TC-SEMN', 'STEELE': 'TC-SEMN',
+                                 'WABASHA': 'TC-SEMN', 'WASECA': 'TC-SEMN', 'WATONWAN': 'TC-SEMN',
+                                 'WINONA': 'TC-SEMN'}
 
     def set_current_campaign(self):
         campaign_dic = dict()
@@ -297,7 +324,8 @@ def export_results():
             sql = ("SELECT a.*, b.* FROM `records` AS a "
                    "JOIN id_entry as b "
                    "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
-                   "WHERE DATE(b.log_date) = ? AND b.exported = 0;")
+                   "WHERE DATE(b.log_date) = ? AND b.exported = 0 "
+                   "ORDER BY a.`campaign`, a.`art_code`;")
 
             d_parts = str.split(d[0], '-')
             cursor.execute(sql, d)
@@ -330,21 +358,24 @@ def export_results():
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
-               "WHERE DATE(b.log_date) = DATE('now', 'localtime');")
+               "WHERE DATE(b.log_date) = DATE('now', 'localtime') "
+               "ORDER BY a.`campaign`, a.`art_code`;")
 
     if ans == '3':
         ans = input("Export ALL for date (YYYY-MM-DD): ")
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
-               "WHERE DATE(b.log_date) = ?;")
+               "WHERE DATE(b.log_date) = ? "
+               "ORDER BY a.`campaign`, a.`art_code`;")
 
     if ans == '4':
         ans = input("Export not previously exported for date (YYYY-MM-DD): ")
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
-               "WHERE DATE(b.log_date) = ? AND b.exported = 0;")
+               "WHERE DATE(b.log_date) = ? AND b.exported = 0 "
+               "ORDER BY a.`campaign`, a.`art_code`;")
 
     if ans in ['2', '3', '4']:
         cursor.execute(sql)
@@ -365,6 +396,10 @@ def export_results():
                 cursor.execute(sql, (r[3], r[93]))
 
         conn.commit()
+
+        with open(f'Letter_MERGE_{datetime_string}.txt', 'w+', newline='') as s:
+            csvw = csv.writer(s, delimiter='\t')
+            csvw.writerow(g.file_export_header)
 
     conn.close()
 
