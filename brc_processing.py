@@ -2,11 +2,14 @@ import csv
 import os
 import sqlite3
 import datetime
+import configparser
+import mysql.connector
 
 
 class Global:
     def __init__(self):
-        self.database = 'medica_brc_entry.db'
+        self.database = ''
+        self.db_param = {'host': '', 'user': '', 'password': ''}
         self.current_campaign = ''
         self.available_campaigns = []
         self.processing_date = datetime.date.strftime(datetime.date.today(), "%Y-%m-%d")
@@ -66,6 +69,14 @@ class Global:
             print("\n** Invalid date format, processing date NOT updated **\n\n")
 
         main_menu()
+
+    def set_db_param(self):
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        self.db_param['host'] = config['db_param']['host']
+        self.db_param['user'] = config['db_param']['user']
+        self.db_param['password'] = config['db_param']['password']
+        self.database = config['db_param']['database']
 
 
 def initialize_db():
@@ -131,7 +142,8 @@ def initialize_db():
             "`in_service` VARCHAR(1) NULL DEFAULT '0', `removed` VARCHAR(50) NULL DEFAULT NULL, "
             "`m_id` VARCHAR(10) NULL DEFAULT NULL, `std_dmamps` VARCHAR(1) NULL DEFAULT NULL, "
             "`std_prison` VARCHAR(1) NULL DEFAULT NULL, `std_deceas` VARCHAR(1) NULL DEFAULT NULL, "
-            "`desc_dob` VARCHAR(6) NULL DEFAULT NULL, `desc_dod` VARCHAR(8) NULL DEFAULT NULL);")
+            "`desc_dob` VARCHAR(6) NULL DEFAULT NULL, `desc_dod` VARCHAR(8) NULL DEFAULT NULL) "
+            "COLLATE='latin1_swedish_ci' ENGINE=InnoDB;")
 
     sql2 = ("CREATE TABLE `id_entry` ("
             "`unique_id` VARCHAR(25) NULL DEFAULT NULL,"
@@ -142,9 +154,10 @@ def initialize_db():
             "`exported` INT(10) DEFAULT 0, "
             "`log_date` DATE NULL DEFAULT NULL,"
             "`entry_date` DATETIME NULL DEFAULT NULL,"
-            "PRIMARY KEY (`unique_id`, `campaign`));")
+            "PRIMARY KEY (`unique_id`, `campaign`)) "
+            "COLLATE='latin1_swedish_ci' ENGINE=InnoDB;")
 
-    conn = sqlite3.connect(database=g.database)
+    conn = mysql.connector.connect(database=g.database, **g.db_param)
     cursor = conn.cursor()
 
     cursor.execute("DROP TABLE IF EXISTS `records`;")
@@ -155,7 +168,6 @@ def initialize_db():
     cursor.execute(sql2)
     conn.commit()
 
-    cursor.execute("VACUUM;")
     conn.close()
 
 
@@ -166,7 +178,7 @@ def import_records(fle, campaign):
     import_header.extend(['campaign'])
     import_header_sql = "`,`".join(import_header)
 
-    conn = sqlite3.connect(database=g.database)
+    conn = mysql.connector.connect(database=g.database, **g.db_param)
     cursor = conn.cursor()
 
     with open(fle, 'r') as f:
@@ -189,7 +201,7 @@ def import_records(fle, campaign):
 
 def show_tables():
     print("Fetching loaded tables")
-    conn = sqlite3.connect(database=g.database)
+    conn = mysql.connector.connect(database=g.database, **g.db_param)
     cursor = conn.cursor()
 
     if not g.available_campaigns:
@@ -216,6 +228,7 @@ def show_tables():
     else:
         for r in g.available_campaigns:
             print("\t{0}".format(r))
+        print("\n**Current campaign search for: {0}**\n".format(g.current_campaign))
 
     conn.close()
 
@@ -236,7 +249,7 @@ def choose_task():
 def export_results():
     """ all results for day, all unexported results for day
     """
-    conn = sqlite3.connect(database=g.database)
+    conn = mysql.connector.connect(database=g.database, **g.db_param)
     cursor = conn.cursor()
 
     print("\nExporting results")
@@ -286,7 +299,7 @@ def export_results():
 
                 sql = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
                        "(`unique_id` = ? AND `campaign` = ?);")
-                print(sql, r[3], r[93])
+                # print(sql, r[3], r[93])
                 cursor.execute(sql, (r[3], r[93]))
 
             conn.commit()
@@ -343,7 +356,7 @@ def unique_id_entry():
         display matching results
         set aside if not matching
     """
-    conn = sqlite3.connect(database=g.database)
+    conn = mysql.connector.connect(database=g.database, **g.db_param)
     cursor = conn.cursor()
 
     print("\nenter '0' to exit to main menu")
@@ -440,6 +453,7 @@ def main_menu(display_tables=True):
 def main():
     global g
     g = Global()
+    g.set_db_param()
     # initialize_db()
     # import_records(os.path.join('records', 'full_list_lg1.txt'), 'LG1')
     # import_records(os.path.join('records', 'full_list_lg2.txt'), 'LG2')
