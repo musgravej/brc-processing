@@ -171,6 +171,28 @@ def initialize_db():
     conn.close()
 
 
+def execute_sql_script(fle):
+    print("Executing script", fle)
+    conn = mysql.connector.connect(database=g.database, **g.db_param)
+    cursor = conn.cursor()
+
+    f = open(fle, 'r')
+    sql_file = f.read()
+    f.close()
+
+    sql_commands = sql_file.split(';')
+
+    for n, command in enumerate(sql_commands, 1):
+        try:
+            cursor.execute(command)
+        except mysql.connector.OperationalError as msg:
+            print(f"Command skipped (line {n}: {msg}")
+            print(f"\t{command}")
+
+    conn.commit()
+    conn.close()
+
+
 def import_records(fle, campaign):
 
     print("importing: {0}".format(fle))
@@ -290,12 +312,12 @@ def export_results():
             datetime_string = datetime.datetime.strftime(save_date_string, "%Y-%m-%d_%H-%M-%S")
 
             with open(f'AbbyyACQ_{datetime_string}.csv', 'w+', newline='') as s:
-                csvw = csv.writer(s, delimiter='|')
+                csvw = csv.writer(s, delimiter=',')
                 csvw.writerow(g.file_export_header)
                 for r in results:
-                    csvw.writerow(['', r[3], r[4], r[6], r[10], r[11],
+                    csvw.writerow([r[3], r[4], r[6], r[10], r[11],
                                    r[13], r[14], r[15], r[95], r[94],
-                                   r[35], '', f'brc_scans_{datetime_string}.pdf', ''])
+                                   r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
 
                 sql = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
                        "(`unique_id` = ? AND `campaign` = ?);")
@@ -331,12 +353,12 @@ def export_results():
         datetime_string = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d_%H-%M-%S")
 
         with open(f'AbbyyACQ_{datetime_string}.csv', 'w+', newline='') as s:
-            csvw = csv.writer(s, delimiter='|')
+            csvw = csv.writer(s, delimiter=',')
             csvw.writerow(g.file_export_header)
             for r in results:
-                csvw.writerow(['', r[3], r[4], r[6], r[10], r[11],
+                csvw.writerow([r[3], r[4], r[6], r[10], r[11],
                               r[13], r[14], r[15], r[95], r[94],
-                              r[35], '', f'brc_scans_{datetime_string}.pdf', ''])
+                              r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
 
                 sql = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
                        "(`unique_id` = ? AND `campaign` = ?);")
@@ -458,6 +480,7 @@ def main():
     # import_records(os.path.join('records', 'full_list_lg1.txt'), 'LG1')
     # import_records(os.path.join('records', 'full_list_lg2.txt'), 'LG2')
     # import_records(os.path.join('records', 'full_list_preheat.txt'), 'Preheat')
+    # execute_sql_script('code_corrections.sql')
     main_menu()
 
 
