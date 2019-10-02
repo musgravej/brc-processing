@@ -381,8 +381,6 @@ def export_results():
                     else:
                         kit_code = kit_lookup
 
-                    # print("{} | {}".format(r[12], kit_code))
-
                     csvw.writerow([g.current_campaign, r[4], r[6], r[7], r[9], r[11], r[10],
                                    r[13], r[14], r[15], r[12], r[3], r[36],
                                    r[40], kit_code])
