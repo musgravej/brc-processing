@@ -5,6 +5,9 @@ import datetime
 import configparser
 import mysql.connector
 
+# TODO export report?
+# TODO add suppression table
+
 
 class Global:
     def __init__(self):
