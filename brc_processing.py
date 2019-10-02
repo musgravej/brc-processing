@@ -116,6 +116,12 @@ class Global:
         self.database = config['db_param']['database']
         self.current_campaign = config['db_param']['campaign']
 
+    def initialize_folders(self):
+        if not os.path.exists('ftp_files'):
+            os.mkdir('ftp_files')
+        if not os.path.exists('letter_merge'):
+            os.mkdir('letter_merge')
+
 
 def initialize_db():
     sql1 = ("CREATE TABLE `records` ("
@@ -349,7 +355,7 @@ def export_results():
                                                  second=datetime.datetime.now().second)
             datetime_string = datetime.datetime.strftime(save_date_string, "%Y-%m-%d_%H-%M-%S")
 
-            with open(f'AbbyyACQ_{datetime_string}.csv', 'w+', newline='') as s:
+            with open(os.path.join('ftp_files', f'AbbyyACQ_{datetime_string}.csv'), 'w+', newline='') as s:
                 csvw = csv.writer(s, delimiter=',')
                 csvw.writerow(g.file_export_header)
                 for r in results:
@@ -364,7 +370,7 @@ def export_results():
 
             conn.commit()
 
-            with open(f'Letter_MERGE_{datetime_string}.txt', 'w+', newline='') as s:
+            with open(os.path.join('letter_merge', f'Letter_MERGE_{datetime_string}.txt'), 'w+', newline='') as s:
                 csvw = csv.writer(s, delimiter='\t')
                 csvw.writerow(g.merge_letter_header)
                 for r in results:
@@ -375,7 +381,9 @@ def export_results():
                     else:
                         kit_code = kit_lookup
 
-                    csvw.writerow([r[4], r[6], r[7], r[9], r[11], r[10],
+                    # print("{} | {}".format(r[12], kit_code))
+
+                    csvw.writerow([g.current_campaign, r[4], r[6], r[7], r[9], r[11], r[10],
                                    r[13], r[14], r[15], r[12], r[3], r[36],
                                    r[40], kit_code])
 
@@ -411,7 +419,7 @@ def export_results():
         if ans in ['3', '4']:
             datetime_string = datetime.datetime.strftime(datetime.datetime.now(), "{0}_%H-%M-%S".format(export_date))
 
-        with open(f'AbbyyACQ_{datetime_string}.csv', 'w+', newline='') as s:
+        with open(os.path.join('ftp_files', f'AbbyyACQ_{datetime_string}.csv'), 'w+', newline='') as s:
             csvw = csv.writer(s, delimiter=',')
             csvw.writerow(g.file_export_header)
             for r in results:
@@ -426,7 +434,7 @@ def export_results():
 
         conn.commit()
 
-        with open(f'Letter_MERGE_{datetime_string}.txt', 'w+', newline='') as s:
+        with open(os.path.join('letter_merge', f'Letter_MERGE_{datetime_string}.txt'), 'w+', newline='') as s:
             csvw = csv.writer(s, delimiter='\t')
             csvw.writerow(g.merge_letter_header)
             for r in results:
@@ -437,7 +445,7 @@ def export_results():
                 else:
                     kit_code = kit_lookup
 
-                csvw.writerow([r[4], r[6], r[7], r[9], r[11], r[10],
+                csvw.writerow([g.current_campaign, r[4], r[6], r[7], r[9], r[11], r[10],
                                r[13], r[14], r[15], r[12], r[3], r[36],
                                r[40], kit_code])
 
@@ -552,6 +560,7 @@ def main_menu(display_tables=True):
 def main():
     global g
     g = Global()
+    g.initialize_folders()
     g.set_db_param()
     # initialize_db()
     # import_records(os.path.join('records', 'full_list_lg1.txt'), 'LG1')
