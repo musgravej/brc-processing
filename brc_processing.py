@@ -357,10 +357,10 @@ def export_results():
                                    r[13], r[14], r[15], r[95], r[94],
                                    r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
 
-                sql = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
-                       "(`unique_id` = %s AND `campaign` = %s);")
-                # print(sql, r[3], r[93])
-                cursor.execute(sql, (r[3], r[93]))
+                    sql_update = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
+                                  "(`unique_id` = %s AND `campaign` = %s);")
+                    # print(sql_update, r[3], r[93])
+                    cursor.execute(sql_update, (r[3], r[93]))
 
             conn.commit()
 
@@ -383,30 +383,33 @@ def export_results():
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-               "WHERE DATE(b.log_date) = DATE('now', 'localtime') "
+               "WHERE DATE(b.log_date) = CURDATE() "
                "ORDER BY a.`campaign`, a.`art_code`;")
 
     if ans == '3':
-        ans = input("Export ALL for date (YYYY-MM-DD): ")
+        export_date = input("Export ALL for date (YYYY-MM-DD): ")
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-               "WHERE DATE(b.log_date) = %s "
-               "ORDER BY a.`campaign`, a.`art_code`;")
+               "WHERE DATE(b.log_date) = '{0}' "
+               "ORDER BY a.`campaign`, a.`art_code`;".format(export_date))
 
     if ans == '4':
-        ans = input("Export not previously exported for date (YYYY-MM-DD): ")
+        export_date = input("Export not previously exported for date (YYYY-MM-DD): ")
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-               "WHERE DATE(b.log_date) = %s AND b.exported = 0 "
-               "ORDER BY a.`campaign`, a.`art_code`;")
+               "WHERE DATE(b.log_date) = '{0}' AND b.exported = 0 "
+               "ORDER BY a.`campaign`, a.`art_code`;".format(export_date))
 
     if ans in ['2', '3', '4']:
+        print(sql)
         cursor.execute(sql)
         results = cursor.fetchall()
 
         datetime_string = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d_%H-%M-%S")
+        if ans in ['3', '4']:
+            datetime_string = datetime.datetime.strftime(datetime.datetime.now(), "{0}_%H-%M-%S".format(export_date))
 
         with open(f'AbbyyACQ_{datetime_string}.csv', 'w+', newline='') as s:
             csvw = csv.writer(s, delimiter=',')
@@ -416,9 +419,10 @@ def export_results():
                               r[13], r[14], r[15], r[95], r[94],
                               r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
 
-                sql = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
-                       "(`unique_id` = %s AND `campaign` = %s);")
-                cursor.execute(sql, (r[3], r[93]))
+                sql_update = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
+                              "(`unique_id` = %s AND `campaign` = %s);")
+                # print(sql_update, (r[3], r[93]))
+                cursor.execute(sql_update, (r[3], r[93]))
 
         conn.commit()
 
