@@ -43,7 +43,9 @@ class Global:
 
         self.merge_letter_header = ['Campaign', 'Individual_First_Name_1', 'Individual_Last_Name_1',
                                     'Individual_First_Name_2', 'Individual_Last_Name_2', 'Address_1',
-                                    'Address_2', ]
+                                    'Address_2', 'City', 'State', 'Zip', 'County', 'Unique_ID',
+                                    'mid', 'art_code', 'kit'
+                                    ]
 
         self.version_dictionary = {'ML2|Y0088_54602_C': 'OMA', 'ML1|Y0088_54601_C': 'OMA',
                                    'ML3|Y0088_54603_C': 'OMA', 'BRC20 ML7|n/a': 'OMA',
@@ -69,6 +71,9 @@ class Global:
                                  'WINONA': 'TC-SEMN'}
 
     def set_current_campaign(self):
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+
         campaign_dic = dict()
         for n, x in enumerate(g.available_campaigns, 1):
             print("{}: {}".format(n, x))
@@ -80,6 +85,11 @@ class Global:
             ans = int(input("Set current campaign by number: "))
 
         self.current_campaign = campaign_dic[ans]
+        config.set('db_param', 'campaign', campaign_dic[ans])
+
+        with open('config.ini', 'w') as configfile:
+            config.write(configfile)
+
         print("Current campaign search changed to {0}\n".format(self.current_campaign.upper()))
 
         main_menu()
@@ -104,6 +114,7 @@ class Global:
         self.db_param['user'] = config['db_param']['user']
         self.db_param['password'] = config['db_param']['password']
         self.database = config['db_param']['database']
+        self.current_campaign = config['db_param']['campaign']
 
 
 def initialize_db():
@@ -266,8 +277,7 @@ def show_tables():
                 r = result[0]
                 print("\t{0}".format(r))
                 lst.append(r)
-                if n == 0:
-                    g.current_campaign = r
+
         else:
             print("Error: No tables loaded")
 
@@ -323,11 +333,11 @@ def export_results():
         for d in dates:
             sql = ("SELECT a.*, b.* FROM `records` AS a "
                    "JOIN id_entry as b "
-                   "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
-                   "WHERE DATE(b.log_date) = ? AND b.exported = 0 "
+                   "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
+                   "WHERE DATE(b.log_date) = %s AND b.exported = 0 "
                    "ORDER BY a.`campaign`, a.`art_code`;")
 
-            d_parts = str.split(d[0], '-')
+            d_parts = str.split(str(d[0]), '-')
             cursor.execute(sql, d)
             results = cursor.fetchall()
 
@@ -348,16 +358,31 @@ def export_results():
                                    r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
 
                 sql = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
-                       "(`unique_id` = ? AND `campaign` = ?);")
+                       "(`unique_id` = %s AND `campaign` = %s);")
                 # print(sql, r[3], r[93])
                 cursor.execute(sql, (r[3], r[93]))
 
             conn.commit()
 
+            with open(f'Letter_MERGE_{datetime_string}.txt', 'w+', newline='') as s:
+                csvw = csv.writer(s, delimiter='\t')
+                csvw.writerow(g.merge_letter_header)
+                for r in results:
+                    kit_lookup = g.version_dictionary["{}|{}".format(r[36], r[40])]
+
+                    if kit_lookup == 'county':
+                        kit_code = g.special_counties[r[12].upper()]
+                    else:
+                        kit_code = kit_lookup
+
+                    csvw.writerow([r[4], r[6], r[7], r[9], r[11], r[10],
+                                   r[13], r[14], r[15], r[12], r[3], r[36],
+                                   r[40], kit_code])
+
     if ans == '2':
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
-               "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
+               "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
                "WHERE DATE(b.log_date) = DATE('now', 'localtime') "
                "ORDER BY a.`campaign`, a.`art_code`;")
 
@@ -365,16 +390,16 @@ def export_results():
         ans = input("Export ALL for date (YYYY-MM-DD): ")
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
-               "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
-               "WHERE DATE(b.log_date) = ? "
+               "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
+               "WHERE DATE(b.log_date) = %s "
                "ORDER BY a.`campaign`, a.`art_code`;")
 
     if ans == '4':
         ans = input("Export not previously exported for date (YYYY-MM-DD): ")
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
-               "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
-               "WHERE DATE(b.log_date) = ? AND b.exported = 0 "
+               "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
+               "WHERE DATE(b.log_date) = %s AND b.exported = 0 "
                "ORDER BY a.`campaign`, a.`art_code`;")
 
     if ans in ['2', '3', '4']:
@@ -392,14 +417,25 @@ def export_results():
                               r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
 
                 sql = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
-                       "(`unique_id` = ? AND `campaign` = ?);")
+                       "(`unique_id` = %s AND `campaign` = %s);")
                 cursor.execute(sql, (r[3], r[93]))
 
         conn.commit()
 
         with open(f'Letter_MERGE_{datetime_string}.txt', 'w+', newline='') as s:
             csvw = csv.writer(s, delimiter='\t')
-            csvw.writerow(g.file_export_header)
+            csvw.writerow(g.merge_letter_header)
+            for r in results:
+                kit_lookup = g.version_dictionary["{}|{}".format(r[36], r[40])]
+
+                if kit_lookup == 'county':
+                    kit_code = g.special_counties[r[12].upper()]
+                else:
+                    kit_code = kit_lookup
+
+                csvw.writerow([r[4], r[6], r[7], r[9], r[11], r[10],
+                               r[13], r[14], r[15], r[12], r[3], r[36],
+                               r[40], kit_code])
 
     conn.close()
 
@@ -419,14 +455,15 @@ def unique_id_entry():
     print("\nenter '0' to exit to main menu")
     print("\nID will search in campaign, {0}".format(g.current_campaign))
     ans = input("\nEnter unique id ({0}): ".format(g.current_campaign))
+    error = False
 
     while ans != '0':
-        error = False
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "LEFT JOIN id_entry as b "
-               "ON a.unique_id||a.campaign = b.unique_id||b.campaign "
-               "WHERE a.`unique_id` = ? AND a.`campaign` = ?;")
+               "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
+               "WHERE a.`unique_id` = %s AND a.`campaign` = %s;")
 
+        # print(sql, (ans, g.current_campaign,))
         cursor.execute(sql, (ans, g.current_campaign))
 
         results = cursor.fetchall()
@@ -449,7 +486,7 @@ def unique_id_entry():
                 print("Address: {0}".format(result[10]))
                 if result[11] != '':
                     print("         : {0}".format(result[11]))
-                print("{0}, {1} {2}".format(result[12], result[14], result[15]))
+                print("{0}, {1} {2}".format(result[13], result[14], result[15]))
 
                 if result[98] is not None:
                     ans = input("\n** Unique ID previously "
@@ -459,7 +496,7 @@ def unique_id_entry():
                         error = True
 
             if not error:
-                ans = input("Accept entry? (yes: 1 / no: 0)")
+                ans = input("Accept entry? (yes: 1 / no: 0): ")
                 while ans not in ['1', '0']:
                     print("Invalid response")
                     ans = input("Accept entry? (yes: 1 / no: 0): ")
@@ -473,7 +510,7 @@ def unique_id_entry():
 
                     sql = ("REPLACE INTO `id_entry` (`unique_id`, `log_date`, `entered_email`,"
                            "`entered_phone`, `entry_notes`, `campaign`, `exported`, `entry_date`) "
-                           "VALUES (?, ?, ?, ?, ?, ?, 0, DATETIME('now', 'localtime'));")
+                           "VALUES (%s, %s, %s, %s, %s, %s, 0, CURRENT_TIMESTAMP);")
 
                     cursor.execute(sql, (result[3], g.processing_date, email, phone,
                                          notes, g.current_campaign))
@@ -482,6 +519,7 @@ def unique_id_entry():
                 else:
                     print("Entry not recorded")
 
+        error = False
         ans = input("\nEnter unique id ({0}): ".format(g.current_campaign.upper()))
 
     conn.close()
