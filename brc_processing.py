@@ -1,6 +1,6 @@
 import csv
 import os
-import sqlite3
+# import sqlite3
 import datetime
 import configparser
 import mysql.connector
