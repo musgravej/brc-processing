@@ -13,6 +13,10 @@ Abbyy*.csv
 /records
 Letter*.txt
 export_fields.txt
+/letter_merge
+/print_letter_pdf
+/ftp_files
+/fp
 
 # C extensions
 *.so
