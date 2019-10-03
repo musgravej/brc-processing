@@ -1,12 +1,8 @@
 import csv
 import os
-# import sqlite3
 import datetime
 import configparser
 import mysql.connector
-
-# TODO export report?
-# TODO add suppression table
 
 
 class Global:
@@ -315,6 +311,57 @@ def choose_task():
     return ans
 
 
+def write_count_reports(results, datetime_string):
+    with open(os.path.join('ftp_files', f'Count Report_{datetime_string}.txt'), 'w+', newline='') as s:
+        counts = dict()
+        s.write("MID\tCount\n")
+        for r in results:
+            counts[r[36]] = counts.get(r[36], 0) + 1
+
+        total = 0
+        for mid, count in counts.items():
+            s.write(f"{mid}\t{count}\n")
+            total += count
+
+        s.write("\n{0}\nTotal\t{1}".format(datetime_string[:10], total))
+
+
+def write_ftp_files(cursor, results, datetime_string):
+    with open(os.path.join('ftp_files', f'AbbyyACQ_{datetime_string}.csv'), 'w+', newline='') as s:
+        csvw = csv.writer(s, delimiter=',')
+        csvw.writerow(g.file_export_header)
+        for r in results:
+            csvw.writerow([r[3], r[4], r[6], r[10], r[11],
+                           r[13], r[14], r[15], r[95], r[94],
+                           r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
+
+            sql_update1 = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
+                           "(`unique_id` = %s AND `campaign` = %s);")
+
+            sql_update2 = ("UPDATE `id_entry` SET `export_date` = CURRENT_TIMESTAMP WHERE "
+                           "(`unique_id` = %s AND `campaign` = %s);")
+
+            cursor.execute(sql_update1, (r[3], r[93]))
+            cursor.execute(sql_update2, (r[3], r[93]))
+
+
+def write_letter_merge(results, datetime_string):
+    with open(os.path.join('letter_merge', f'Letter_MERGE_{datetime_string}.txt'), 'w+', newline='') as s:
+        csvw = csv.writer(s, delimiter='\t')
+        csvw.writerow(g.merge_letter_header)
+        for r in results:
+            kit_lookup = g.version_dictionary["{}|{}".format(r[36], r[40])]
+
+            if kit_lookup == 'county':
+                kit_code = g.special_counties[r[12].upper()]
+            else:
+                kit_code = kit_lookup
+
+            csvw.writerow([g.current_campaign, r[4], r[6], r[7], r[9], r[11], r[10],
+                           r[13], r[14], r[15], r[12], r[3], r[36],
+                           r[40], kit_code])
+
+
 def export_results():
     """ all results for day, all unexported results for day
     """
@@ -359,39 +406,10 @@ def export_results():
                                                  second=datetime.datetime.now().second)
             datetime_string = datetime.datetime.strftime(save_date_string, "%Y-%m-%d_%H-%M-%S")
 
-            with open(os.path.join('ftp_files', f'AbbyyACQ_{datetime_string}.csv'), 'w+', newline='') as s:
-                csvw = csv.writer(s, delimiter=',')
-                csvw.writerow(g.file_export_header)
-                for r in results:
-                    csvw.writerow([r[3], r[4], r[6], r[10], r[11],
-                                   r[13], r[14], r[15], r[95], r[94],
-                                   r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
-
-                    sql_update1 = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
-                                   "(`unique_id` = %s AND `campaign` = %s);")
-
-                    sql_update2 = ("UPDATE `id_entry` SET `export_date` = CURRENT_TIMESTAMP WHERE "
-                                   "(`unique_id` = %s AND `campaign` = %s);")
-
-                    cursor.execute(sql_update1, (r[3], r[93]))
-                    cursor.execute(sql_update2, (r[3], r[93]))
-
+            write_ftp_files(cursor, results, datetime_string)
             conn.commit()
-
-            with open(os.path.join('letter_merge', f'Letter_MERGE_{datetime_string}.txt'), 'w+', newline='') as s:
-                csvw = csv.writer(s, delimiter='\t')
-                csvw.writerow(g.merge_letter_header)
-                for r in results:
-                    kit_lookup = g.version_dictionary["{}|{}".format(r[36], r[40])]
-
-                    if kit_lookup == 'county':
-                        kit_code = g.special_counties[r[12].upper()]
-                    else:
-                        kit_code = kit_lookup
-
-                    csvw.writerow([g.current_campaign, r[4], r[6], r[7], r[9], r[11], r[10],
-                                   r[13], r[14], r[15], r[12], r[3], r[36],
-                                   r[40], kit_code])
+            write_letter_merge(results, datetime_string)
+            write_count_reports(results, datetime_string)
 
     if ans == '2':
         sql = ("SELECT a.*, b.* FROM `records` AS a "
@@ -417,7 +435,7 @@ def export_results():
                "ORDER BY a.`campaign`, a.`art_code`;".format(export_date))
 
     if ans in ['2', '3', '4']:
-        print(sql)
+        # print(sql)
         cursor.execute(sql)
         results = cursor.fetchall()
 
@@ -425,39 +443,10 @@ def export_results():
         if ans in ['3', '4']:
             datetime_string = datetime.datetime.strftime(datetime.datetime.now(), "{0}_%H-%M-%S".format(export_date))
 
-        with open(os.path.join('ftp_files', f'AbbyyACQ_{datetime_string}.csv'), 'w+', newline='') as s:
-            csvw = csv.writer(s, delimiter=',')
-            csvw.writerow(g.file_export_header)
-            for r in results:
-                csvw.writerow([r[3], r[4], r[6], r[10], r[11],
-                              r[13], r[14], r[15], r[95], r[94],
-                              r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
-
-                sql_update1 = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
-                               "(`unique_id` = %s AND `campaign` = %s);")
-
-                sql_update2 = ("UPDATE `id_entry` SET `export_date` = CURRENT_TIMESTAMP WHERE "
-                               "(`unique_id` = %s AND `campaign` = %s);")
-
-                cursor.execute(sql_update1, (r[3], r[93]))
-                cursor.execute(sql_update2, (r[3], r[93]))
-
+        write_ftp_files(cursor, results, datetime_string)
         conn.commit()
-
-        with open(os.path.join('letter_merge', f'Letter_MERGE_{datetime_string}.txt'), 'w+', newline='') as s:
-            csvw = csv.writer(s, delimiter='\t')
-            csvw.writerow(g.merge_letter_header)
-            for r in results:
-                kit_lookup = g.version_dictionary["{}|{}".format(r[36], r[40])]
-
-                if kit_lookup == 'county':
-                    kit_code = g.special_counties[r[12].upper()]
-                else:
-                    kit_code = kit_lookup
-
-                csvw.writerow([g.current_campaign, r[4], r[6], r[7], r[9], r[11], r[10],
-                               r[13], r[14], r[15], r[12], r[3], r[36],
-                               r[40], kit_code])
+        write_letter_merge(results, datetime_string)
+        write_count_reports(results, datetime_string)
 
     conn.close()
 
