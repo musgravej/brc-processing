@@ -201,6 +201,7 @@ def initialize_db():
             "`exported` INT(10) DEFAULT 0, "
             "`log_date` DATE NULL DEFAULT NULL,"
             "`entry_date` DATETIME NULL DEFAULT NULL,"
+            "`export_date` DATETIME NULL DEFAULT NULL,"
             "PRIMARY KEY (`unique_id`, `campaign`)) "
             "COLLATE='latin1_swedish_ci' ENGINE=InnoDB;")
 
@@ -336,7 +337,7 @@ def export_results():
     if ans == '0':
         main_menu()
     if ans == '1':
-        cursor.execute("SELECT DATE(log_date) FROM `id_entry` group by DATE(log_date);")
+        cursor.execute("SELECT DATE(log_date) FROM `id_entry` WHERE exported = 0 GROUP BY DATE(log_date);")
         dates = cursor.fetchall()
 
         for d in dates:
@@ -366,10 +367,14 @@ def export_results():
                                    r[13], r[14], r[15], r[95], r[94],
                                    r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
 
-                    sql_update = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
-                                  "(`unique_id` = %s AND `campaign` = %s);")
-                    # print(sql_update, r[3], r[93])
-                    cursor.execute(sql_update, (r[3], r[93]))
+                    sql_update1 = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
+                                   "(`unique_id` = %s AND `campaign` = %s);")
+
+                    sql_update2 = ("UPDATE `id_entry` SET `export_date` = CURRENT_TIMESTAMP WHERE "
+                                   "(`unique_id` = %s AND `campaign` = %s);")
+
+                    cursor.execute(sql_update1, (r[3], r[93]))
+                    cursor.execute(sql_update2, (r[3], r[93]))
 
             conn.commit()
 
@@ -428,10 +433,14 @@ def export_results():
                               r[13], r[14], r[15], r[95], r[94],
                               r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
 
-                sql_update = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
-                              "(`unique_id` = %s AND `campaign` = %s);")
-                # print(sql_update, (r[3], r[93]))
-                cursor.execute(sql_update, (r[3], r[93]))
+                sql_update1 = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
+                               "(`unique_id` = %s AND `campaign` = %s);")
+
+                sql_update2 = ("UPDATE `id_entry` SET `export_date` = CURRENT_TIMESTAMP WHERE "
+                               "(`unique_id` = %s AND `campaign` = %s);")
+
+                cursor.execute(sql_update1, (r[3], r[93]))
+                cursor.execute(sql_update2, (r[3], r[93]))
 
         conn.commit()
 
