@@ -4,8 +4,6 @@ import datetime
 import configparser
 import mysql.connector
 
-# TODO change date field for previously entered message
-
 
 class Global:
     def __init__(self):
