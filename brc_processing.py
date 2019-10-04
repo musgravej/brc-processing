@@ -4,6 +4,8 @@ import datetime
 import configparser
 import mysql.connector
 
+# TODO change date field for previously entered message
+
 
 class Global:
     def __init__(self):
@@ -502,7 +504,7 @@ def unique_id_entry():
                 if result[98] is not None:
                     ans = input("\n** Unique ID previously "
                                 "logged on {0}, REPLACE? "
-                                "(yes: 1 / no: 0): ".format(result[98]))
+                                "(yes: 1 / no: 0): ".format(result[99]))
                     if ans != '1':
                         error = True
 
