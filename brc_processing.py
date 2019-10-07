@@ -331,7 +331,7 @@ def write_ftp_files(cursor, results, datetime_string):
         csvw = csv.writer(s, delimiter=',')
         csvw.writerow(g.file_export_header)
         for r in results:
-            csvw.writerow([r[3], r[4], r[6], r[10], r[11],
+            csvw.writerow([r[3], r[4], r[6], r[11], r[10],
                            r[13], r[14], r[15], r[95], r[94],
                            r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
 
@@ -392,7 +392,7 @@ def export_results():
                    "JOIN id_entry as b "
                    "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
                    "WHERE DATE(b.log_date) = %s AND b.exported = 0 "
-                   "ORDER BY a.`campaign`, a.`art_code`;")
+                   "ORDER BY a.`campaign`, a.`print_mid`;")
 
             d_parts = str.split(str(d[0]), '-')
             cursor.execute(sql, d)
@@ -416,7 +416,7 @@ def export_results():
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
                "WHERE DATE(b.log_date) = CURDATE() "
-               "ORDER BY a.`campaign`, a.`art_code`;")
+               "ORDER BY a.`campaign`, a.`print_mid`;")
 
     if ans == '3':
         export_date = input("Export ALL for date (YYYY-MM-DD): ")
@@ -424,7 +424,7 @@ def export_results():
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
                "WHERE DATE(b.log_date) = '{0}' "
-               "ORDER BY a.`campaign`, a.`art_code`;".format(export_date))
+               "ORDER BY a.`campaign`, a.`print_mid`;".format(export_date))
 
     if ans == '4':
         export_date = input("Export not previously exported for date (YYYY-MM-DD): ")
@@ -432,7 +432,7 @@ def export_results():
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
                "WHERE DATE(b.log_date) = '{0}' AND b.exported = 0 "
-               "ORDER BY a.`campaign`, a.`art_code`;".format(export_date))
+               "ORDER BY a.`campaign`, a.`print_mid`;".format(export_date))
 
     if ans in ['2', '3', '4']:
         # print(sql)
