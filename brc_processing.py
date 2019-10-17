@@ -4,10 +4,6 @@ import datetime
 import configparser
 import mysql.connector
 
-# TODO update letter merge to group by versions
-# TODO add support for remove records
-# TODO add notes to remove reports
-
 
 class Global:
     def __init__(self):
@@ -205,6 +201,7 @@ def initialize_db():
             "`deceased` INT(1) DEFAULT 0,"
             "`deceased_fname` varchar(100) NULL DEFAULT NULL,"
             "`deceased_lname` varchar(100) NULL DEFAULT NULL,"
+            "`dnm` INT(1) DEFAULT 0,"
             "PRIMARY KEY (`unique_id`, `campaign`)) "
             "COLLATE='latin1_swedish_ci' ENGINE=InnoDB;")
 
@@ -306,7 +303,7 @@ def show_tables():
 def choose_task():
     ans = input("Choose task\n\t1: start entry\n\t2: export entries\n\t"
                 "3: change campaign for entry\n\t4: change processing date\n\t"
-                "5: enter deceased records\n\t0: quit: ")
+                "5: enter deceased / dnm records\n\t0: quit: ")
     if ans not in ['1', '2', '3', '4', '5', '0']:
         print("Invalid answer")
         main_menu()
@@ -353,22 +350,26 @@ def write_ftp_files(cursor, results, datetime_string):
 
 def write_deceased_records(cursor, results, datetime_string):
     deceased_header = ['Unique Person ID', 'First Name', 'Last Name', 'Address 1', 'Address 2',
-                       'City', 'State', 'Zip', 'County']
+                       'City', 'State', 'Zip', 'County', 'Notes', 'Record Type']
 
-    with open(os.path.join('ftp_files', f'DECEASED_{datetime_string}.csv'), 'w+', newline='') as s:
+    with open(os.path.join('ftp_files', f'Deceased_DNM_{datetime_string}.csv'), 'w+', newline='') as s:
         csvw = csv.DictWriter(s, fieldnames=deceased_header, delimiter=',')
         csvw.writeheader()
 
         for r in results:
+            print(r)
+            rec_type = ('do not mail' if r[104] == 1 else 'deceased' if r[101] == 1 else '')
             w = {'Unique Person ID': r[3],
-                 'First Name': r[102],
-                 'Last Name': r[103],
+                 'First Name': r[102] if r[102] is not None else r[4],
+                 'Last Name': r[103] if r[103] is not None else r[6],
                  'Address 1': r[10],
                  'Address 2': r[11],
                  'City': r[13],
                  'State': r[14],
                  'Zip': r[15],
-                 'County': r[12]}
+                 'County': r[12],
+                 'Notes': r[96],
+                 'Record Type': rec_type}
 
             csvw.writerow(w)
 
@@ -408,14 +409,16 @@ def export_results():
     print("\nExporting results")
     ans = input("\nChoose export type\n\t1: Export for ALL not previously exported"
                 "\n\t2: Export ALL for today\n\t3: Export ALL for date"
-                "\n\t4: Export not previously exported for date\n\t5: Export not previously exported deceased"
+                "\n\t4: Export not previously exported for date"
+                "\n\t5: Export not previously exported deceased / dnm"
                 "\n\t0: exit to main menu\n: ")
 
     while ans not in ['0', '1', '2', '3', '4', '5']:
         print("Invalid answer")
         ans = input("\nChoose export type\n\t1: Export for ALL not previously exported"
                     "\n\t2: Export ALL for unique ID entered TODAY\n\t3: Export ALL for date"
-                    "\n\t4: Export not previously exported for date\n\t5: Export not previously exported deceased"
+                    "\n\t4: Export not previously exported for date"
+                    "\n\t5: Export not previously exported deceased / dnm"
                     "\n\t0: exit to main menu\n: ")
 
     if ans == '0':
@@ -425,7 +428,7 @@ def export_results():
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-               "WHERE (b.exported = 0 AND b.deceased = 1) "
+               "WHERE (b.exported = 0 AND (b.deceased = 1 OR b.dnm = 1)) "
                "ORDER BY a.`campaign`, a.`art_code`;")
 
         cursor.execute(sql)
@@ -506,7 +509,7 @@ def export_results():
     export_results()
 
 
-def deceased_entry():
+def deceased_dnm_entry():
     """
         0 to exit to start processing menu
         enter MID
@@ -518,7 +521,7 @@ def deceased_entry():
 
     print("\nenter '0' to exit to main menu")
     print("\nID will search in campaign, {0}".format(g.current_campaign))
-    ans = input("\nEnter unique id as deceased ({0}): ".format(g.current_campaign))
+    ans = input("\nEnter unique id as deceased or do not mail ({0}): ".format(g.current_campaign))
     error = False
 
     while ans != '0':
@@ -560,10 +563,10 @@ def deceased_entry():
                         error = True
 
             if not error:
-                ans = input("Mark as deceased? (yes: 1 / no: 0): ")
-                while ans not in ['1', '0']:
+                ans = input("Mark as (deceased: 1 / dnm: 2 / cancel: 0): ")
+                while ans not in ['2', '1', '0']:
                     print("Invalid response")
-                    ans = input("Mark as deceased? (yes: 1 / no: 0): ")
+                    ans = input("Mark as (deceased: 1 / dnm: 2 / cancel: 0): ")
 
                 if ans == '1':
                     first_name = input("deceased first name: ").strip()
@@ -579,11 +582,22 @@ def deceased_entry():
                                          notes, g.current_campaign, first_name, last_name))
                     conn.commit()
 
+                if ans == '2':
+                    notes = input("additional notes: ").strip()
+
+                    sql = ("REPLACE INTO `id_entry` (`unique_id`, `log_date`, `dnm`, "
+                           "`entry_notes`, `campaign`, `exported`, `entry_date`) "
+                           "VALUES (%s, %s, %s, %s, %s, 0, CURRENT_TIMESTAMP);")
+
+                    cursor.execute(sql, (result[3], g.processing_date, 1,
+                                         notes, g.current_campaign))
+                    conn.commit()
+
                 else:
                     print("Entry not recorded")
 
         error = False
-        ans = input("\nEnter unique id as deceased ({0}): ".format(g.current_campaign.upper()))
+        ans = input("\nEnter unique id as deceased or do not mail ({0}): ".format(g.current_campaign.upper()))
 
     conn.close()
     main_menu()
@@ -680,7 +694,7 @@ def main_menu(display_tables=True):
     ans = choose_task()
 
     if ans == '5':
-        deceased_entry()
+        deceased_dnm_entry()
 
     if ans == '4':
         g.set_processing_date()
