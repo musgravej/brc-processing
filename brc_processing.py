@@ -4,6 +4,10 @@ import datetime
 import configparser
 import mysql.connector
 
+# TODO update letter merge to group by versions
+# TODO add support for remove records
+# TODO add notes to remove reports
+
 
 class Global:
     def __init__(self):
