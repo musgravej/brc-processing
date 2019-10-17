@@ -18,25 +18,25 @@ class Global:
         self.processing_date = datetime.date.strftime(datetime.date.today(), "%Y-%m-%d")
 
         self.file_import_header = ['source', 'source_seq', 'unique_id', 'Individual_First_Name_1',
-                                   'Individual_Middle_Name_1', 'Individual_Last_Name_1', 
-                                   'Individual_First_Name_2', 'Individual_Middle_Name_2', 
-                                   'Individual_Last_Name_2', 'Address_1', 'Address_2', 'County', 
-                                   'City', 'State', 'ZipCode', 'MSA', 'date_of_birth', 'Individual_1_Phone_number_1', 
-                                   'Individual_1_Phone_number_2', 'Individual_1_Phone_number_3', 
-                                   'Individual_2_Phone_number_1', 'Individual_2_Phone_number_2', 
-                                   'Individual_2_Phone_number_3', 'Individual_1_email_address_1', 
-                                   'Individual_1_email_address_2', 'Individual_1_email_address_3', 
-                                   'Individual_2_email_address_1', 'Individual_2_email_address_2', 
-                                   'Individual_2_email_address_3', 'lead_source', 'Segment', 
-                                   'Expiration_Date', 'Likely2_Org_Medicare_Score', 'Carrot_Health_Segment', 
-                                   'mid', 'print_mid', 'media_logic_project_id', 'fbo_caps', 'version', 
-                                   'art_code', 'orig_county', 'crrt', 'barcode', 'x', 'status_', 'errno_', 
-                                   'type_', 'lacs_', 'company', 'ocompany', 'oaddress', 'oaddress2', 
-                                   'ocity', 'ostate', 'ozipcode', 'lot_', 'ascdesc_', 'dp_', 'countyno_', 
-                                   'stno_', 'lacsind_', 'lacsrc_', 'stelink_', 'zip5', 'dpc', 'latitude_', 
-                                   'longitude_', 'elatitude', 'elongitude', 'dpv_', 'census_tr', 'census_bl', 
-                                   'census_rs', 'dpvnotes_', 'vacant_', 'leftout_', 'ffapplied_', 'movetype_', 
-                                   'movedate_', 'matchflag_', 'nxi_', 'ank_', 'address_group', 'in_service', 
+                                   'Individual_Middle_Name_1', 'Individual_Last_Name_1',
+                                   'Individual_First_Name_2', 'Individual_Middle_Name_2',
+                                   'Individual_Last_Name_2', 'Address_1', 'Address_2', 'County',
+                                   'City', 'State', 'ZipCode', 'MSA', 'date_of_birth', 'Individual_1_Phone_number_1',
+                                   'Individual_1_Phone_number_2', 'Individual_1_Phone_number_3',
+                                   'Individual_2_Phone_number_1', 'Individual_2_Phone_number_2',
+                                   'Individual_2_Phone_number_3', 'Individual_1_email_address_1',
+                                   'Individual_1_email_address_2', 'Individual_1_email_address_3',
+                                   'Individual_2_email_address_1', 'Individual_2_email_address_2',
+                                   'Individual_2_email_address_3', 'lead_source', 'Segment',
+                                   'Expiration_Date', 'Likely2_Org_Medicare_Score', 'Carrot_Health_Segment',
+                                   'mid', 'print_mid', 'media_logic_project_id', 'fbo_caps', 'version',
+                                   'art_code', 'orig_county', 'crrt', 'barcode', 'x', 'status_', 'errno_',
+                                   'type_', 'lacs_', 'company', 'ocompany', 'oaddress', 'oaddress2',
+                                   'ocity', 'ostate', 'ozipcode', 'lot_', 'ascdesc_', 'dp_', 'countyno_',
+                                   'stno_', 'lacsind_', 'lacsrc_', 'stelink_', 'zip5', 'dpc', 'latitude_',
+                                   'longitude_', 'elatitude', 'elongitude', 'dpv_', 'census_tr', 'census_bl',
+                                   'census_rs', 'dpvnotes_', 'vacant_', 'leftout_', 'ffapplied_', 'movetype_',
+                                   'movedate_', 'matchflag_', 'nxi_', 'ank_', 'address_group', 'in_service',
                                    'removed', 'm_id', 'std_dmamps', 'std_prison', 'std_deceas', 'desc_dob',
                                    'desc_dod']
 
@@ -202,6 +202,9 @@ def initialize_db():
             "`log_date` DATE NULL DEFAULT NULL,"
             "`entry_date` DATETIME NULL DEFAULT NULL,"
             "`export_date` DATETIME NULL DEFAULT NULL,"
+            "`deceased` INT(1) DEFAULT 0,"
+            "`deceased_fname` varchar(100) NULL DEFAULT NULL,"
+            "`deceased_lname` varchar(100) NULL DEFAULT NULL,"
             "PRIMARY KEY (`unique_id`, `campaign`)) "
             "COLLATE='latin1_swedish_ci' ENGINE=InnoDB;")
 
@@ -242,7 +245,6 @@ def execute_sql_script(fle):
 
 
 def import_records(fle, campaign):
-
     print("importing: {0}".format(fle))
     import_header = list(g.file_import_header)
     import_header.extend(['campaign'])
@@ -252,7 +254,6 @@ def import_records(fle, campaign):
     cursor = conn.cursor()
 
     with open(fle, 'r') as f:
-        
         csvr = csv.DictReader(f, g.file_import_header, delimiter='\t')
         next(csvr)
         for n, line in enumerate(csvr, 1):
@@ -303,9 +304,10 @@ def show_tables():
 
 
 def choose_task():
-    ans = input("Choose task (1: start entry, 2: export entries, "
-                "3: change campaign for entry, 4: change processing date, 0: quit): ")
-    if ans not in ['1', '2', '3', '4', '0']:
+    ans = input("Choose task\n\t1: start entry\n\t2: export entries\n\t"
+                "3: change campaign for entry\n\t4: change processing date\n\t"
+                "5: enter deceased records\n\t0: quit: ")
+    if ans not in ['1', '2', '3', '4', '5', '0']:
         print("Invalid answer")
         main_menu()
 
@@ -349,6 +351,37 @@ def write_ftp_files(cursor, results, datetime_string):
             cursor.execute(sql_update2, (r[3], r[93]))
 
 
+def write_deceased_records(cursor, results, datetime_string):
+    deceased_header = ['Unique Person ID', 'First Name', 'Last Name', 'Address 1', 'Address 2',
+                       'City', 'State', 'Zip', 'County']
+
+    with open(os.path.join('ftp_files', f'DECEASED_{datetime_string}.csv'), 'w+', newline='') as s:
+        csvw = csv.DictWriter(s, fieldnames=deceased_header, delimiter=',')
+        csvw.writeheader()
+
+        for r in results:
+            w = {'Unique Person ID': r[3],
+                 'First Name': r[102],
+                 'Last Name': r[103],
+                 'Address 1': r[10],
+                 'Address 2': r[11],
+                 'City': r[13],
+                 'State': r[14],
+                 'Zip': r[15],
+                 'County': r[12]}
+
+            csvw.writerow(w)
+
+            sql_update1 = ("UPDATE `id_entry` SET `exported` = (`exported` + 1) WHERE "
+                           "(`unique_id` = %s AND `campaign` = %s);")
+
+            sql_update2 = ("UPDATE `id_entry` SET `export_date` = CURRENT_TIMESTAMP WHERE "
+                           "(`unique_id` = %s AND `campaign` = %s);")
+
+            cursor.execute(sql_update1, (r[3], r[93]))
+            cursor.execute(sql_update2, (r[3], r[93]))
+
+
 def write_letter_merge(results, datetime_string):
     with open(os.path.join('letter_merge', f'Letter_MERGE_{datetime_string}.txt'), 'w+', newline='') as s:
         csvw = csv.writer(s, delimiter='\t')
@@ -375,20 +408,36 @@ def export_results():
     print("\nExporting results")
     ans = input("\nChoose export type\n\t1: Export for ALL not previously exported"
                 "\n\t2: Export ALL for today\n\t3: Export ALL for date"
-                "\n\t4: Export not previously exported for date"
+                "\n\t4: Export not previously exported for date\n\t5: Export not previously exported deceased"
                 "\n\t0: exit to main menu\n: ")
 
-    while ans not in ['0', '1', '2', '3', '4']:
+    while ans not in ['0', '1', '2', '3', '4', '5']:
         print("Invalid answer")
         ans = input("\nChoose export type\n\t1: Export for ALL not previously exported"
                     "\n\t2: Export ALL for unique ID entered TODAY\n\t3: Export ALL for date"
-                    "\n\t4: Export not previously exported for date"
+                    "\n\t4: Export not previously exported for date\n\t5: Export not previously exported deceased"
                     "\n\t0: exit to main menu\n: ")
 
     if ans == '0':
         main_menu()
+
+    if ans == '5':
+        sql = ("SELECT a.*, b.* FROM `records` AS a "
+               "JOIN id_entry as b "
+               "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
+               "WHERE (b.exported = 0 AND b.deceased = 1) "
+               "ORDER BY a.`campaign`, a.`art_code`;")
+
+        cursor.execute(sql)
+        results = cursor.fetchall()
+
+        datetime_string = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d_%H-%M-%S")
+        write_deceased_records(cursor, results, datetime_string)
+        conn.commit()
+
     if ans == '1':
-        cursor.execute("SELECT DATE(log_date) FROM `id_entry` WHERE exported = 0 GROUP BY DATE(log_date);")
+        cursor.execute("SELECT DATE(log_date) FROM `id_entry` WHERE exported = 0 AND `deceased` = 0 "
+                       "GROUP BY DATE(log_date);")
         dates = cursor.fetchall()
 
         for d in dates:
@@ -419,7 +468,7 @@ def export_results():
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-               "WHERE DATE(b.log_date) = CURDATE() "
+               "WHERE DATE(b.log_date) = CURDATE() AND b.`deceased` = 0 "
                "ORDER BY a.`campaign`, a.`art_code`;")
 
     if ans == '3':
@@ -427,7 +476,7 @@ def export_results():
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-               "WHERE DATE(b.log_date) = '{0}' "
+               "WHERE DATE(b.log_date) = '{0}' AND b.`deceased` = 0 "
                "ORDER BY a.`campaign`, a.`art_code`;".format(export_date))
 
     if ans == '4':
@@ -435,7 +484,7 @@ def export_results():
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-               "WHERE DATE(b.log_date) = '{0}' AND b.exported = 0 "
+               "WHERE DATE(b.log_date) = '{0}' AND b.exported = 0 AND b.`deceased` = 0 "
                "ORDER BY a.`campaign`, a.`art_code`;".format(export_date))
 
     if ans in ['2', '3', '4']:
@@ -457,10 +506,93 @@ def export_results():
     export_results()
 
 
+def deceased_entry():
+    """
+        0 to exit to start processing menu
+        enter MID
+        display matching results
+        set aside if not matching
+    """
+    conn = mysql.connector.connect(database=g.database, **g.db_param)
+    cursor = conn.cursor()
+
+    print("\nenter '0' to exit to main menu")
+    print("\nID will search in campaign, {0}".format(g.current_campaign))
+    ans = input("\nEnter unique id as deceased ({0}): ".format(g.current_campaign))
+    error = False
+
+    while ans != '0':
+        sql = ("SELECT a.*, b.* FROM `records` AS a "
+               "LEFT JOIN id_entry as b "
+               "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
+               "WHERE a.`unique_id` = %s AND a.`campaign` = %s;")
+
+        # print(sql, (ans, g.current_campaign,))
+        cursor.execute(sql, (ans, g.current_campaign))
+
+        results = cursor.fetchall()
+        if len(results) == 0:
+            print("No result found")
+            error = True
+        if len(results) > 1:
+            print("Error: unique id returns more than one result.\n:"
+                  "See list administrator")
+            error = True
+
+        if not error:
+            for result in results:
+                # print(result)
+                print("Search result:")
+                print("Unique ID: {0}\nMID: {1}".format(result[3], result[36]))
+                print("Name 1: {0} {1}".format(result[4], result[6]))
+                if result[7] != '':
+                    print("Name 2: {0} {1}".format(result[7], result[9]))
+                print("Address: {0}".format(result[10]))
+                if result[11] != '':
+                    print("         : {0}".format(result[11]))
+                print("{0}, {1} {2}".format(result[13], result[14], result[15]))
+
+                if result[98] is not None:
+                    ans = input("\n** Unique ID previously "
+                                "logged on {0}, REPLACE? "
+                                "(yes: 1 / no: 0): ".format(result[99]))
+                    if ans != '1':
+                        error = True
+
+            if not error:
+                ans = input("Mark as deceased? (yes: 1 / no: 0): ")
+                while ans not in ['1', '0']:
+                    print("Invalid response")
+                    ans = input("Mark as deceased? (yes: 1 / no: 0): ")
+
+                if ans == '1':
+                    first_name = input("deceased first name: ").strip()
+                    last_name = input("deceased last name: ").strip()
+                    notes = input("additional notes: ").strip()
+
+                    sql = ("REPLACE INTO `id_entry` (`unique_id`, `log_date`, `deceased`, "
+                           "`entry_notes`, `campaign`, `exported`, `entry_date`, `deceased_fname`,"
+                           "`deceased_lname`) "
+                           "VALUES (%s, %s, %s, %s, %s, 0, CURRENT_TIMESTAMP, %s, %s);")
+
+                    cursor.execute(sql, (result[3], g.processing_date, 1,
+                                         notes, g.current_campaign, first_name, last_name))
+                    conn.commit()
+
+                else:
+                    print("Entry not recorded")
+
+        error = False
+        ans = input("\nEnter unique id as deceased ({0}): ".format(g.current_campaign.upper()))
+
+    conn.close()
+    main_menu()
+
+
 def unique_id_entry():
     """
         0 to exit to start processing menu
-        enter MID, reject on ML6
+        enter MID
         display matching results
         set aside if not matching
     """
@@ -546,6 +678,9 @@ def main_menu(display_tables=True):
         show_tables()
 
     ans = choose_task()
+
+    if ans == '5':
+        deceased_entry()
 
     if ans == '4':
         g.set_processing_date()
