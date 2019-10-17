@@ -439,7 +439,8 @@ def export_results():
         conn.commit()
 
     if ans == '1':
-        cursor.execute("SELECT DATE(log_date) FROM `id_entry` WHERE exported = 0 AND `deceased` = 0 "
+        cursor.execute("SELECT DATE(log_date) FROM `id_entry` "
+                       "WHERE (exported = 0 AND `dnm` = 0 AND `deceased` = 0) "
                        "GROUP BY DATE(log_date);")
         dates = cursor.fetchall()
 
@@ -447,7 +448,7 @@ def export_results():
             sql = ("SELECT a.*, b.* FROM `records` AS a "
                    "JOIN id_entry as b "
                    "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-                   "WHERE DATE(b.log_date) = %s AND b.exported = 0 "
+                   "WHERE DATE(b.log_date) = %s AND (b.exported = 0 AND b.deceased = 0 AND b.dnm = 0) "
                    "ORDER BY a.`campaign`, a.`art_code`;")
 
             d_parts = str.split(str(d[0]), '-')
@@ -471,7 +472,7 @@ def export_results():
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-               "WHERE DATE(b.log_date) = CURDATE() AND b.`deceased` = 0 "
+               "WHERE DATE(b.log_date) = CURDATE() AND (b.exported = 0 AND b.deceased = 0 AND b.dnm = 0) "
                "ORDER BY a.`campaign`, a.`art_code`;")
 
     if ans == '3':
@@ -479,7 +480,7 @@ def export_results():
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-               "WHERE DATE(b.log_date) = '{0}' AND b.`deceased` = 0 "
+               "WHERE DATE(b.log_date) = '{0}' AND (b.deceased = 0 AND b.dnm = 0) "
                "ORDER BY a.`campaign`, a.`art_code`;".format(export_date))
 
     if ans == '4':
@@ -487,7 +488,7 @@ def export_results():
         sql = ("SELECT a.*, b.* FROM `records` AS a "
                "JOIN id_entry as b "
                "ON a.unique_id = b.unique_id AND a.campaign = b.campaign "
-               "WHERE DATE(b.log_date) = '{0}' AND b.exported = 0 AND b.`deceased` = 0 "
+               "WHERE DATE(b.log_date) = '{0}' AND (b.exported = 0 AND b.deceased = 0 AND b.dnm = 0) "
                "ORDER BY a.`campaign`, a.`art_code`;".format(export_date))
 
     if ans in ['2', '3', '4']:
