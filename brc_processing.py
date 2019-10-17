@@ -357,7 +357,6 @@ def write_deceased_records(cursor, results, datetime_string):
         csvw.writeheader()
 
         for r in results:
-            print(r)
             rec_type = ('do not mail' if r[104] == 1 else 'deceased' if r[101] == 1 else '')
             w = {'Unique Person ID': r[3],
                  'First Name': r[102] if r[102] is not None else r[4],
