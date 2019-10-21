@@ -334,7 +334,7 @@ def write_ftp_files(cursor, results, datetime_string):
         csvw = csv.writer(s, delimiter=',')
         csvw.writerow(g.file_export_header)
         for r in results:
-            csvw.writerow([r[3], r[4], r[6], r[10], r[11],
+            csvw.writerow([r[3], r[4], r[6], r[11], r[10],
                            r[13], r[14], r[15], r[95], r[94],
                            r[36], '', f'brc_scans_{datetime_string}.pdf', ''])
 
