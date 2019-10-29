@@ -410,7 +410,7 @@ def export_results():
                 "\n\t2: Export ALL for today\n\t3: Export ALL for date"
                 "\n\t4: Export not previously exported for date"
                 "\n\t5: Export not previously exported deceased / dnm"
-                "\n\t0: exit to main menu\n: ")
+                "\n\t0: exit to main menu\n\t : ")
 
     while ans not in ['0', '1', '2', '3', '4', '5']:
         print("Invalid answer")
@@ -418,7 +418,7 @@ def export_results():
                     "\n\t2: Export ALL for unique ID entered TODAY\n\t3: Export ALL for date"
                     "\n\t4: Export not previously exported for date"
                     "\n\t5: Export not previously exported deceased / dnm"
-                    "\n\t0: exit to main menu\n: ")
+                    "\n\t0: exit to main menu\n\t : ")
 
     if ans == '0':
         main_menu()
