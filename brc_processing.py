@@ -303,8 +303,8 @@ def show_tables():
 def choose_task():
     ans = input("Choose task\n\t1: start entry\n\t2: export entries\n\t"
                 "3: change campaign for entry\n\t4: change processing date\n\t"
-                "5: enter deceased / dnm records\n\t0: quit: ")
-    if ans not in ['1', '2', '3', '4', '5', '0']:
+                "5: enter deceased / dnm records\n\t6: search database for name\n\t0: quit: ")
+    if ans not in ['1', '2', '3', '4', '5', '6', '0']:
         print("Invalid answer")
         main_menu()
 
@@ -509,6 +509,90 @@ def export_results():
     export_results()
 
 
+def search_database():
+    """
+        0 to exit to start processing menu
+        Searches database by name
+    """
+    conn = mysql.connector.connect(database=g.database, **g.db_param)
+    cursor = conn.cursor()
+    error = False
+
+    print("\nSearch tables by last name / first name")
+    last_name = input("\nEnter last name for search (0 to exit): ")
+
+    while last_name != '0':
+        first_name = input("\nEnter first name for search (optional): ")
+
+        sql = ("SELECT `campaign`, `unique_id`, "
+               "CONCAT(`Individual_First_Name_1`, ' ', `Individual_Last_Name_1`) 'Name 1', "
+               "CONCAT(`Individual_First_Name_2`, ' ', `Individual_Last_Name_2`) 'Name 2', "
+               "`Address_1`, `Address_2`, `City`, `State`, `ZipCode` "
+               "FROM records "
+               "WHERE (UPPER(`Individual_Last_Name_1`) = %s OR UPPER(`Individual_Last_Name_2`) = %s);")
+
+        if first_name != '':
+            sql = ("SELECT `campaign`, `unique_id`, "
+                   "CONCAT(`Individual_First_Name_1`, ' ', `Individual_Last_Name_1`) 'Name 1', "
+                   "CONCAT(`Individual_First_Name_2`, ' ', `Individual_Last_Name_2`) 'Name 2', "
+                   "`Address_1`, `Address_2`, `City`, `State`, `ZipCode` "
+                   "FROM records "
+                   "WHERE (UPPER(`Individual_Last_Name_1`) = %s OR UPPER(`Individual_Last_Name_2`) = %s)"
+                   "AND (UPPER(`Individual_First_Name_1`) = %s "
+                   "OR UPPER(`Individual_First_Name_2`) = %s);")
+
+        if first_name != '':
+            cursor.execute(sql, (last_name.upper(), last_name.upper(), first_name.upper(), first_name.upper()))
+        else:
+            cursor.execute(sql, (last_name.upper(), last_name.upper()))
+
+        results = cursor.fetchall()
+        if len(results) == 0:
+            print("No result found")
+            error = True
+
+        field_lengths = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
+        if not error:
+            for result in results:
+                for n in range(0, len(result)):
+                    if len(result[n]) > field_lengths.get(n):
+                        field_lengths[n] = len(result[n])
+
+            print("Search results:")
+            print("{val0:<{val0w}}|{val1:<{val1w}}"
+                  "|{val2:<{val2w}}|{val3:<{val3w}}|{val4:<{val4w}}"
+                  "|{val5:<{val5w}}|{val6:<{val6w}}|{val7:<{val7w}}"
+                  "|{val8:<{val8w}}".format(val0='Campaign', val0w=max((field_lengths[0] + 2), 10),
+                                            val1='ID', val1w=max((field_lengths[1] + 2), 4),
+                                            val2='Name 1', val2w=max((field_lengths[2] + 2), 8),
+                                            val3='Name 2', val3w=max((field_lengths[3] + 2), 8),
+                                            val4='Address 1', val4w=max((field_lengths[4] + 2), 11),
+                                            val5='Address 2', val5w=max((field_lengths[5] + 2), 11),
+                                            val6='City', val6w=max((field_lengths[6] + 2), 6),
+                                            val7='ST', val7w=max((field_lengths[7] + 2), 4),
+                                            val8='ZIP', val8w=max((field_lengths[8] + 2), 11)))
+
+            for result in results:
+                print("{val0:<{val0w}}|{val1:<{val1w}}"
+                      "|{val2:<{val2w}}|{val3:<{val3w}}|{val4:<{val4w}}"
+                      "|{val5:<{val5w}}|{val6:<{val6w}}|{val7:<{val7w}}"
+                      "|{val8:<{val8w}}".format(val0=result[0], val0w=max((field_lengths[0] + 2), 10),
+                                                val1=result[1], val1w=max((field_lengths[1] + 2), 4),
+                                                val2=result[2], val2w=max((field_lengths[2] + 2), 8),
+                                                val3=result[3], val3w=max((field_lengths[3] + 2), 8),
+                                                val4=result[4], val4w=max((field_lengths[4] + 2), 11),
+                                                val5=result[5], val5w=max((field_lengths[5] + 2), 11),
+                                                val6=result[6], val6w=max((field_lengths[6] + 2), 6),
+                                                val7=result[7], val7w=max((field_lengths[7] + 2), 4),
+                                                val8=result[8], val8w=max((field_lengths[8] + 2), 11)))
+
+        error = False
+        last_name = input("\nEnter last name for search (0 to exit): ")
+
+    conn.close()
+    main_menu()
+
+
 def deceased_dnm_entry():
     """
         0 to exit to start processing menu
@@ -693,6 +777,9 @@ def main_menu(display_tables=True):
 
     ans = choose_task()
 
+    if ans == '6':
+        search_database()
+
     if ans == '5':
         deceased_dnm_entry()
 
@@ -718,6 +805,7 @@ def main():
     # import_records(os.path.join('records', 'full_list_lg1.txt'), 'LG1')
     # import_records(os.path.join('records', 'full_list_lg2.txt'), 'LG2')
     # import_records(os.path.join('records', 'full_list_preheat.txt'), 'Preheat')
+    # import_records(os.path.join('records', 'full_list_lg3.txt'), 'LG3')
     # execute_sql_script('code_corrections.sql')
     main_menu()
 
