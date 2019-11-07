@@ -555,36 +555,43 @@ def search_database():
         if not error:
             for result in results:
                 for n in range(0, len(result)):
-                    if len(result[n]) > field_lengths.get(n):
-                        field_lengths[n] = len(result[n])
+                    field_lengths[n] = max(len(result[n]), field_lengths[n])
+                    # if len(result[n]) > field_lengths.get(n):
+                    #     field_lengths[n] = len(result[n])
 
-            print("Search results:")
-            print("{val0:<{val0w}}|{val1:<{val1w}}"
-                  "|{val2:<{val2w}}|{val3:<{val3w}}|{val4:<{val4w}}"
-                  "|{val5:<{val5w}}|{val6:<{val6w}}|{val7:<{val7w}}"
-                  "|{val8:<{val8w}}".format(val0='Campaign', val0w=max((field_lengths[0] + 2), 10),
-                                            val1='ID', val1w=max((field_lengths[1] + 2), 4),
-                                            val2='Name 1', val2w=max((field_lengths[2] + 2), 8),
-                                            val3='Name 2', val3w=max((field_lengths[3] + 2), 8),
-                                            val4='Address 1', val4w=max((field_lengths[4] + 2), 11),
-                                            val5='Address 2', val5w=max((field_lengths[5] + 2), 11),
-                                            val6='City', val6w=max((field_lengths[6] + 2), 6),
-                                            val7='ST', val7w=max((field_lengths[7] + 2), 4),
-                                            val8='ZIP', val8w=max((field_lengths[8] + 2), 11)))
+            print("\nSearch results:\n")
+
+            print_str = ("{val0:<{val0w}}|{val1:<{val1w}}"
+                         "|{val2:<{val2w}}|{val3:<{val3w}}|{val4:<{val4w}}"
+                         "|{val5:<{val5w}}|{val6:<{val6w}}|{val7:<{val7w}}"
+                         "|{val8:<{val8w}}".format(val0='Campaign', val0w=max((field_lengths[0] + 2), 10),
+                                                   val1='ID', val1w=max((field_lengths[1] + 2), 4),
+                                                   val2='Name 1', val2w=max((field_lengths[2] + 2), 8),
+                                                   val3='Name 2', val3w=max((field_lengths[3] + 2), 8),
+                                                   val4='Address 1', val4w=max((field_lengths[4] + 2), 11),
+                                                   val5='Address 2', val5w=max((field_lengths[5] + 2), 11),
+                                                   val6='City', val6w=max((field_lengths[6] + 2), 6),
+                                                   val7='ST', val7w=max((field_lengths[7] + 2), 4),
+                                                   val8='ZIP', val8w=max((field_lengths[8] + 2), 11)))
+            print(print_str)
+            print("-" * len(print_str))
 
             for result in results:
-                print("{val0:<{val0w}}|{val1:<{val1w}}"
-                      "|{val2:<{val2w}}|{val3:<{val3w}}|{val4:<{val4w}}"
-                      "|{val5:<{val5w}}|{val6:<{val6w}}|{val7:<{val7w}}"
-                      "|{val8:<{val8w}}".format(val0=result[0], val0w=max((field_lengths[0] + 2), 10),
-                                                val1=result[1], val1w=max((field_lengths[1] + 2), 4),
-                                                val2=result[2], val2w=max((field_lengths[2] + 2), 8),
-                                                val3=result[3], val3w=max((field_lengths[3] + 2), 8),
-                                                val4=result[4], val4w=max((field_lengths[4] + 2), 11),
-                                                val5=result[5], val5w=max((field_lengths[5] + 2), 11),
-                                                val6=result[6], val6w=max((field_lengths[6] + 2), 6),
-                                                val7=result[7], val7w=max((field_lengths[7] + 2), 4),
-                                                val8=result[8], val8w=max((field_lengths[8] + 2), 11)))
+                print_str = ("{val0:<{val0w}}|{val1:<{val1w}}"
+                             "|{val2:<{val2w}}|{val3:<{val3w}}|{val4:<{val4w}}"
+                             "|{val5:<{val5w}}|{val6:<{val6w}}|{val7:<{val7w}}"
+                             "|{val8:<{val8w}}".format(val0=result[0], val0w=max((field_lengths[0] + 2), 10),
+                                                       val1=result[1], val1w=max((field_lengths[1] + 2), 4),
+                                                       val2=result[2], val2w=max((field_lengths[2] + 2), 8),
+                                                       val3=result[3], val3w=max((field_lengths[3] + 2), 8),
+                                                       val4=result[4], val4w=max((field_lengths[4] + 2), 11),
+                                                       val5=result[5], val5w=max((field_lengths[5] + 2), 11),
+                                                       val6=result[6], val6w=max((field_lengths[6] + 2), 6),
+                                                       val7=result[7], val7w=max((field_lengths[7] + 2), 4),
+                                                       val8=result[8], val8w=max((field_lengths[8] + 2), 11)))
+
+                print(print_str)
+                print("-" * len(print_str))
 
         error = False
         last_name = input("\nEnter last name for search (0 to exit): ")
